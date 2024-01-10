@@ -1,7 +1,6 @@
 
 -- Script LUA utilisable pour mettre en place des jets de dés au format Warhammer v4 sur le site PlaneteRoliste.com
 
-
 function IsDouble(d1, d2)
     if (d1 == d2 and true) then
      return true

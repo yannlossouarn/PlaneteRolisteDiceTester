@@ -5,6 +5,7 @@
 math.randomseed(10) -- Version pseudo aléatoire
 
 
+
 -- Module d'interprétation du BBCode : la fonction ReplaceTags remplace un tag bbcode spécifié par une balise HTML
 function ReplaceTags(bbcode, tag, open_tag, close_tag)
     local start_pattern = "%[" .. tag .. "(.-)%]"

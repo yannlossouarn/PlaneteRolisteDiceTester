@@ -1,22 +1,27 @@
 Pegasus = require 'pegasus'
 
+
+
 Server = Pegasus:new({
-  port='9090'
+  host='127.0.0.1',
+  port='9090',
+  location='/'
 })
+
+
 
 local function usageError()
 	error(
 			"\nusage: <script> minified or <script> beautified or <script> original\n" ..
 			"  The PlaneteRoliste wrapper will load the corresponding script\n" ..
-			"  either in its original form, or in its minified or beautified forms :\n\n" ..
+			"  either in its original form, or in its minified form :\n\n" ..
 			"        lua5.4 serve.lua wfrp4 original\n\n" ..
 			"  * original will use the original code.\n" ..
-			"  * minified will use the minified file.\n" ..
-			"  * beautified will use the beautified file.\n", 0)
+			"  * minified will use the minified file.\n", 0)
 end
 
 local args = {...}
-if #args < 1 or #args > 2 or (#args == 2 and not (args[2] == "original" or args[2] == "beautified" or args[2] == "minified")) then
+if #args < 1 or #args > 2 or (#args == 2 and not (args[2] == "original" or args[2] == "minified")) then
 	usageError()
 end
 
@@ -36,8 +41,6 @@ require "scripts.wrapperPlaneteRoliste"
 local scriptPath = "scripts." .. scriptName
 if args[2] == 'minified' then
   scriptPath = scriptPath .. "-minified"
-elseif args[2] == 'beautified' then
-	scriptPath = scriptPath .. "-minified-beautified"
 elseif args[2] == 'original' or args[2] == nil then
 	scriptPath = scriptPath
 else
@@ -46,7 +49,7 @@ end
 
 print(scriptPath)
 
-pcall(require, scriptPath)
+pcall(require, scriptPath .. "")
 
 BodyResponse = [[
     <!DOCTYPE html><html><head><style>:root{
@@ -120,30 +123,17 @@ span.rp_color_ooc{
   <body>
 ]]
 
--- Déclenchement d'une séquence d'appels à la fonction test avec en argument une séquence définissant un type de test.
+-- Déclenchement du script xxx-caller correspondant.
 
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde1 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde2 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde3 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde4 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde5 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde6 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde7 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde8 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde9 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde10 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde11 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde12 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde13 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 78 D 2A 3BF / Garde14 28 I 0A")
-rpg.accel.test("corps-a-corps BorIn 57 I 1A 5BF Enroulement Assommante Défensive / Garde15 33 I 0A")
-rpg.accel.test("corps-a-corps BorIn 57 I 1A 5BF Poudre Défensive Explosion5 / Garde16 33 I 0A")
-rpg.accel.test("simple 32 D")
-rpg.accel.test("spectaculaire 32 D")
-rpg.accel.test("oppose BorIn 45 I / Garde17 46 D")
-rpg.accel.test("simple 57 I")
+pcall(require, "scripts." .. scriptName .. "-caller")
+
+print(string.format("\n\nVotre page de test est disponible sur http://%s:%s%s\n", Server.host, Server.port, Server.location))
+
+print("Appuyez deux fois sur Ctrl+C pour fermer le serveur et retrouver l'invite de commande.\n\n\n\n")
+
 
 Server:start(function (req, rep)
     rep:addHeader('Content-Type', 'text/html; charset=utf-8')
     rep:write(BodyResponse)
   end)
+
