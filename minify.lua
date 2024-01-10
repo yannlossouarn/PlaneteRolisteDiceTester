@@ -2542,9 +2542,9 @@ local function StripAst(ast)
 
 	stripExpr = function(expr)
 		if expr.Type == 'BinopExpr' then
-		        -- stripExpr(expr.Lhs) -- Yann : inhibition du strip sur les opérateurs binaires
+		    	-- stripExpr(expr.Lhs) -- Yann : inhibition du strip sur les opérateurs binaires
 			stript(expr.Token_Op)
-			    -- stripExpr(expr.Rhs) -- Yann : inhibition du strip sur les opérateurs binaires
+				-- stripExpr(expr.Rhs) -- Yann : inhibition du strip sur les opérateurs binaires
 			-- Handle the `a - -b` -/-> `a--b` case which would otherwise incorrectly generate a comment
 			-- Also handles operators "or" / "and" which definitely need joining logic in a bunch of cases
 			joint(expr.Token_Op, expr.Rhs:GetFirstToken())
@@ -2910,21 +2910,31 @@ local function MinifyVariables(globalScope, rootScope)
 	-- those, and we have to make sure that we don't collide with them when renaming 
 	-- things so we keep track of them in this set.
 	local externalGlobals = {}
+	-- externalGlobals["print"] = true
+	-- externalGlobals["tostring"] = true
+	-- externalGlobals["string"] = true
+	-- externalGlobals["tonumber"] = true
+	-- externalGlobals["math"] = true
+	externalGlobals["rpg"] = true -- Yann : ajout de la variable globale rpg aux exceptions pour la minification.
 
 	-- First we want to rename all of the variables to unique temoraries, so that we can
 	-- easily use the scope::GetVar function to check whether renames are valid.
 	local temporaryIndex = 0
 	for _, var in pairs(globalScope) do
-		if var.AssignedTo then
+		
+		if var.AssignedTo and not externalGlobals[var.Name] then
+			print(var.Name .. " à renommer")
 			var:Rename('_TMP_'..temporaryIndex..'_')
 			temporaryIndex = temporaryIndex + 1
 		else
 			-- Not assigned to, external global
+			print(var.Name .. " à laisser")
 			externalGlobals[var.Name] = true
 		end
 	end
 	local function temporaryRename(scope)
 		for _, var in pairs(scope.VariableList) do
+			print(var.Name .. " à renommer (tmp)")
 			var:Rename('_TMP_'..temporaryIndex..'_')
 			temporaryIndex = temporaryIndex + 1
 		end
@@ -2939,7 +2949,7 @@ local function MinifyVariables(globalScope, rootScope)
 	--       used more shorter names.
 	local nextFreeNameIndex = 0
 	for _, var in pairs(globalScope) do
-		if var.AssignedTo then
+		if var.AssignedTo and not externalGlobals[var.Name] then
 			local varName = ''
 			repeat
 				varName = indexToVarName(nextFreeNameIndex)
@@ -2953,6 +2963,7 @@ local function MinifyVariables(globalScope, rootScope)
 	rootScope.FirstFreeName = nextFreeNameIndex
 	local function doRenameScope(scope)
 		for _, var in pairs(scope.VariableList) do
+			-- print(var.Name .. " à renommer (local)")
 			local varName = ''
 			repeat
 				varName = indexToVarName(scope.FirstFreeName)
@@ -3251,7 +3262,7 @@ local ast = CreateLuaParser(data)
 local global_scope, root_scope = AddVariableInfo(ast)
 
 local function minify(ast, global_scope, root_scope)
-	--MinifyVariables(global_scope, root_scope) -- Yann : inhibition du renommage de variables, qui pose problème sur Planète Rôliste
+	MinifyVariables(global_scope, root_scope) -- Yann : inhibition du renommage de variables, qui pose problème sur Planète Rôliste
     StripAst(ast)
 	PrintAst(ast)
 end
@@ -3314,7 +3325,7 @@ strippedData = string.gsub(strippedData, "  ", " ")
 strippedData = string.gsub(strippedData, "  ", " ")
 --strippedData = string.gsub(strippedData, " .. ", "..")
 -- strippedData = string.gsub(strippedData, 'effetsSupplementaires=".-"', "effetsSupplementaires=\"0123456789012345678901234567890123\"")
-strippedData = string.gsub(strippedData, 'effetsSupplementaires=".-"', "effetsSupplementaires=\"🤘\"")
+-- strippedData = string.gsub(strippedData, 'effetsSupplementaires=".-"', "effetsSupplementaires=\"🤘\"")
 --print(strippedData)
 
 
