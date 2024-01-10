@@ -3313,7 +3313,8 @@ strippedData = string.gsub(strippedData, "  ", " ")
 strippedData = string.gsub(strippedData, "  ", " ")
 strippedData = string.gsub(strippedData, "  ", " ")
 --strippedData = string.gsub(strippedData, " .. ", "..")
-strippedData = string.gsub(strippedData, 'effetsSupplementaires=".-"', "effetsSupplementaires=\"0123456789012345678901234567890123\"")
+-- strippedData = string.gsub(strippedData, 'effetsSupplementaires=".-"', "effetsSupplementaires=\"0123456789012345678901234567890123\"")
+strippedData = string.gsub(strippedData, 'effetsSupplementaires=".-"', "effetsSupplementaires=\"🤘\"")
 --print(strippedData)
 
 
