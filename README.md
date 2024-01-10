@@ -1,9 +1,3 @@
----
-runme:
-  id: 01HKQR4ANYYPXQ32HQYM2966C5
-  version: v2.2
----
-
 # PlaneteRolisteDiceTester
 
 PlaneteRolisteDiceTester est un environnement permettant de faciliter le développement des scripts de jets de dés spécifiques à un système de jeu, sur le site [PlaneteRoliste.com](https://www.planeteroliste.com).
