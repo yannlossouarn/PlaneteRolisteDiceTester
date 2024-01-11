@@ -1402,6 +1402,7 @@ end
     local rolls, myheader = rpg.smf.striptitle(s)
     local typetest = string.match(s, "([%w%p]*)[%s]*")
     typetest = tostring(typetest) or ""
+    local resultatTest
     if ((typetest == "simple" or typetest == "spectaculaire") and true) then
      local seuilBase, difficulte = string.match(s, "%w*[%s]*(%d*)[%s]*(%w*)[%s]*")
    
@@ -1415,7 +1416,7 @@ end
      local succes = IsSuccess(GetD100(d1, d2), seuilEffectif)
      local echec = IsFailure(GetD100(d1, d2), seuilEffectif)
      local critique = IsCritical(typetest, d1, d2)
-     return EvaluateTest(typetest, seuilBase, seuilEffectif, difficulte, d1, d2)
+     resultatTest = EvaluateTest(typetest, seuilBase, seuilEffectif, difficulte, d1, d2)
     elseif (typetest == "oppose" and true) then
      local protagoniste1, seuilBase1, difficulte1, protagoniste2, seuilBase2, difficulte2 =
       string.match(s, "%w*[%s]+([%w%p]*)[%s]+(%d+)[%s]+([%w]*)[%s]*/[%s]*([%w%p]+)[%s]*(%d+)[%s]*([%w]*)")
@@ -1456,7 +1457,7 @@ end
      local critique1 = IsCritical(typetest, d1_1, d2_1)
      local critique2 = IsCritical(typetest, d1_2, d2_2)
    
-     return EvaluateTestOppose(
+     resultatTest = EvaluateTestOppose(
       protagoniste1,
       seuilBase1,
       seuilEffectif1,
@@ -1477,7 +1478,6 @@ end
    
      local atoutEnroulement = string.match(s, ".*Enroulement.*/")
      atoutEnroulement = atoutEnroulement ~= nil
-   
    
      local atoutPoudre = string.match(s, ".*(Poudre).*/")
      atoutPoudre = atoutPoudre ~= nil
@@ -1558,7 +1558,7 @@ end
      atoutTaille = atoutTaille ~= nil
      print("atoutTaille", atoutTaille)
    
-     --]]
+
    
      -- caracs de base du défenseur
      local protagoniste2, seuilBase2, difficulte2, avantage2 =
@@ -1575,11 +1575,6 @@ end
    
      bonusForce1 = tonumber(bonusForce1) or 0
    
-     --print("TestOppose:seuilBase1", seuilBase1)
-     --print("TestOppose:difficulte1", difficulte1)
-     --print("TestOppose:seuilBase2", seuilBase2)
-     --print("TestOppose:difficulte2", difficulte2)
-   
      print("TestCorpsACorps:avantage1", avantage1)
      print("TestCorpsACorps:avantage2", avantage2)
    
@@ -1594,13 +1589,9 @@ end
    
      difficulte1 = GetCodeDifficulte(difficulte1)
      difficulte2 = GetCodeDifficulte(difficulte2)
-     --print("TestOppose:difficulte1", difficulte1)
-     --print("TestOppose:difficulte2", difficulte2)
    
      local modificateurDifficulte1 = GetModificateurDifficulte(difficulte1)
      local modificateurDifficulte2 = GetModificateurDifficulte(difficulte2)
-     --print("TestOppose:modificateurDifficulte1", modificateurDifficulte1)
-     --print("TestOppose:modificateurDifficulte2", modificateurDifficulte2)
    
      local seuilEffectif1 = GetSeuilEffectif(seuilBase1, modificateurDifficulte1)
      local seuilEffectif2 = GetSeuilEffectif(seuilBase2, modificateurDifficulte2)
@@ -1608,44 +1599,25 @@ end
      seuilEffectif1 = seuilEffectif1 + (avantage1 * 10)
      seuilEffectif2 = seuilEffectif2 + (avantage2 * 10)
    
-     --print("TestOppose:seuilEffectif1", seuilEffectif1)
-     --print("TestOppose:seuilEffectif2", seuilEffectif2)
-   
      local jets1 = rpg.roll.dice(2, 0, 9)
      local jets2 = rpg.roll.dice(2, 0, 9)
    
      local d1_1 = jets1[1]
      local d1_2 = jets2[1]
    
-     --local d1_1 = 4
-     --local d1_2 = 5
-   
-     --print("TestOppose:d1_1", d1_1)
-     --print("TestOppose:d1_2", d1_2)
-   
      local d2_1 = jets1[2]
      local d2_2 = jets2[2]
-   
-     -- local d2_1 = 4
-     -- local d2_2 = 6
-   
-     --print("TestOppose:d2_1", d2_1)
-     --print("TestOppose:d2_2", d2_2)
-   
+
      local succes1 = IsSuccess(GetD100(d1_1, d2_1), seuilEffectif1)
      local succes2 = IsSuccess(GetD100(d1_2, d2_2), seuilEffectif2)
-     --print("TestOppose:succes1", succes1)
-     --print("TestOppose:succes2", succes2)
-   
+
      local echec1 = IsFailure(GetD100(d1_1, d2_1), seuilEffectif1)
      local echec2 = IsFailure(GetD100(d1_2, d2_2), seuilEffectif2)
-     --print("TestOppose:echec1", echec1)
-     --print("TestOppose:echec2", echec2)
-   
+
      local critique1 = IsCritical(typetest, d1_1, d2_1)
      local critique2 = IsCritical(typetest, d1_2, d2_2)
-   
-     return EvaluateTestCorpsACorps(
+
+     resultatTest = EvaluateTestCorpsACorps(
       protagoniste1,
       seuilBase1,
       seuilEffectif1,
@@ -1667,4 +1639,6 @@ end
     else
      print("Test de type inconnu:", typetest)
     end
+    print("\r\nFin de ce test\r\n\r\n")
+    return resultatTest
    end

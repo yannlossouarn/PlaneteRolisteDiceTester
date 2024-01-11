@@ -118,6 +118,19 @@ span.rp_color_ooc{
     font-size: 13px;
     background-color: black;
   }
+
+  h1 {
+    padding-top: 2em;
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  code {
+    width: 100vw;
+    padding-top: 0.5em;
+    font-size: 1.2rem;
+    text-align: center;
+    display: inline-block;
+  }
   </style>
   </head>
   <body>
