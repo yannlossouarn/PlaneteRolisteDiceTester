@@ -2916,7 +2916,8 @@ local function MinifyVariables(globalScope, rootScope)
 	-- externalGlobals["tonumber"] = true
 	-- externalGlobals["math"] = true
 	externalGlobals["rpg"] = true -- Yann : ajout de la variable globale rpg aux exceptions pour la minification.
-
+	externalGlobals["F"] = true
+	
 	-- First we want to rename all of the variables to unique temoraries, so that we can
 	-- easily use the scope::GetVar function to check whether renames are valid.
 	local temporaryIndex = 0

@@ -19,8 +19,8 @@ end
 
 function FakeRandom.random(firstArg, secondArg)
     local result
+    print(string.format("FakeRandom.random(%s, %s)", firstArg, secondArg))
     if (fakeRandomSequence ~= nil and fakeRandomIndex ~= nil) then
-        print("FakeRandom:fakeSequence disponible", fakeRandomSequence[fakeRandomIndex])
         if(not firstArg and not secondArg) then
             if fakeRandomSequence[fakeRandomIndex] >= 0 and fakeRandomSequence[fakeRandomIndex] <= 1 then
                 print("FakeRandom.random:FakeRandomSequence:valeurOkReal:", fakeRandomSequence[fakeRandomIndex])
@@ -50,10 +50,10 @@ function FakeRandom.random(firstArg, secondArg)
             end
         end
         if (fakeRandomIndex+1 <= #fakeRandomSequence) then
-            print("FakeRandom:on peut incrémenter", fakeRandomIndex, #fakeRandomSequence)
+            print("FakeRandom:prochaineValeur", fakeRandomSequence[fakeRandomIndex+1])
             fakeRandomIndex = fakeRandomIndex + 1
         else
-            print("FakeRandom:on ne peut pas incrémenter", fakeRandomIndex, #fakeRandomSequence)
+            print("FakeRandom:sequence épuisée")
             fakeRandomIndex = nil
             fakeRandomSequence = nil
         end
@@ -100,6 +100,7 @@ function BbcodeToHtml(bbcode)
     bbcode = ReplaceTags(bbcode, "u", "u", "u")
     bbcode = ReplaceTags(bbcode, "b", "b", "b")
     bbcode = ReplaceTags(bbcode, "i", "i", "i")
+    bbcode = ReplaceTags(bbcode, "html", "div", "div")
     return bbcode
 end
 
@@ -110,6 +111,21 @@ rpg = rpg or {}
 rpg.roll = rpg.roll or {}
 rpg.smf = rpg.smf or {}
 rpg.accel = rpg.accel or {}
+rpg.character = rpg.character or {}
+rpg.character.characters = rpg.character.characters or {}
+
+pcall(require, "scripts." .. scriptName .. "-characters")
+
+rpg.character.init()
+
+function rpg.character.getfield(charid,field)
+    local charid = tonumber(charid)
+    if rpg.character.characters[charid][field] then
+        return rpg.character.characters[charid][field]
+    else
+        return nil
+    end
+end
 
 -- Module additionnel utilisable pour lancer les tests dans le script
 rpg.dicetester = rpg.dicetester or {}
@@ -117,23 +133,29 @@ rpg.dicetester.title = nil -- variable globale additionnelle, permettant d'affic
 rpg.dicetester.fulltag = nil -- variable globale additionnelle, permettant d'afficher la balise complète dans le navigateur
 
 function rpg.dicetester.run(fulltag, title, fakeRandomSequence)
+
+    print("rpg.dicetester.run:fulltag", fulltag)
+    print("rpg.dicetester.run:title", title)
+
+
+    -- print("rpg.dicetester.run:#fakeRandomSequence", #fakeRandomSequence)
+
     rpg.dicetester.title = nil
     rpg.dicetester.fulltag = nil
-
     if fulltag == nil then
             print(string.format("rpg.dicetester.run nécessite au moins un paramètre contenant une chaîne de caractère :balise: ou :balise parametre1 parametre2 ...:\n\n"))
         return
     else
         rpg.dicetester.fulltag = string.format("%s", fulltag)
     end
-
     if title ~= nil then
         rpg.dicetester.title = string.format("%s", title)
     end
 
-    print(string.format("rpg.dicetester.run:%s", rpg.dicetester.title))
-
-    local tagName = string.match(fulltag, "^:(%w+)%s*.*:$")
+    print(string.format("rpg.dicetester.title:%s", rpg.dicetester.title))
+    -- print("avant tagName")
+    local tagName = string.match(fulltag, ":(%w+).*:")
+    -- print("tagName", tagName)
     local tagArguments = string.match(fulltag, "^:%w+%s*(.*):$")
     local isTagName = tagName ~= nil
     local accelerator = nil
@@ -160,6 +182,7 @@ function rpg.dicetester.run(fulltag, title, fakeRandomSequence)
         print(string.format("La balise %s n'est pas gérée par ce script. Implémentez une fonction rpg.accel.%s", tagName, tagName))
         return
     end
+    
 end
 
 -- Wrapper simulant l'environnement de PlaneteRoliste : fonction dice du module roll

@@ -1,21 +1,31 @@
+---
+runme:
+  id: 01HKWEDC66BBB2K2GQQXHQQNB4
+  version: v2.2
+---
+
 # PlaneteRolisteDiceTester
 
 PlaneteRolisteDiceTester est un environnement permettant de faciliter le développement des scripts de jets de dés spécifiques à un système de jeu, sur le site [PlaneteRoliste.com](https://www.planeteroliste.com).
 
-PlaneteRolisteDiceTester est constitué :
+PlaneteRolisteDiceTester est principalement constitué :
+
 - d'un wrapper qui exécute un script LUA dans un environnement de développement simulant celui du site,
 - d'un minifieur permettant de réduire le volume du script, dans l'hypothèse où un script s'avérerait trop volumineux par rapport aux limitations en vigueur sur le site.
 
 PlaneteRolisteDiceTester utilise :
+
 - [lua-minify](https://github.com/stravant/lua-minify) , une librairie de minification/beautification de script LUA, développée en LUA par Mark Langer aka Stravant.
 - [pegasus.lua](https://evandrolg.github.io/pegasus.lua/), un serveur HTTP permettant d'exposer une application développée en LUA.
+- [f_strings](https://github.com/hishamhm/f-strings), une librairie d'interpolation de chaînes de caractères.
 
 ## Installation
 
 - Installer [lua](https://www.lua.org/), de préférence en version 5.4 (non testé dans les versions antérieures)
 - Installer [luarocks](https://luarocks.org/)
-- Installer [pegasus-lua](https://luarocks.org/)
-- Cloner ce dépôt avec Git
+- Installer [pegasus-lua](https://github.com/EvandroLG/pegasus.lua) : luarocks install pegasus
+- Installer [f_strings](https://github.com/hishamhm/f-strings) : luarocks install f-strings
+- Cloner ce dépôt avec Git : git clone https://github.com/yannlossouarn/PlaneteRolisteDiceTester
 
 ## Utilisation
 
