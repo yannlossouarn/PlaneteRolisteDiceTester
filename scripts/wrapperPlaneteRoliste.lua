@@ -4,6 +4,8 @@
 OriginalRandom = math.random
 FakeRandom = {fakeRandomIndex = nil, fakeRandomSequence = nil}
 
+print('debut wrapper')
+
 function FakeRandom.randomseed(sequence)
     if not sequence or sequence == nil or #sequence == 0 or #sequence == nil then
         fakeRandomIndex = nil
@@ -114,7 +116,16 @@ rpg.accel = rpg.accel or {}
 rpg.character = rpg.character or {}
 rpg.character.characters = rpg.character.characters or {}
 
-pcall(require, "scripts." .. scriptName .. "-characters")
+
+
+local characterScriptStatus, characterScriptErr = pcall(require, "scripts." .. ScriptName .. "-characters")
+
+if characterScriptStatus then
+  print("Status ok", characterScriptStatus, ScriptPath)
+else
+  print("Erreur dans " .. ScriptPath, characterScriptErr.code, characterScriptErr)
+end
+
 
 rpg.character.init()
 
@@ -169,7 +180,14 @@ function rpg.dicetester.run(fulltag, title, fakeRandomSequence)
     end
 
     if isTagName then
-        local acceleratorLoader = load(string.format("return rpg.accel.%s", tagName))
+        print("tagName", tagName)
+        local acceleratorLoader
+        if _VERSION == "Lua 5.1" then
+            acceleratorLoader = loadstring(string.format("return rpg.accel.%s", tagName))
+        elseif _VERSION == "Lua 5.2" or _VERSION == "Lua 5.3" or _VERSION == "Lua 5.4" then
+            acceleratorLoader = load(string.format("return rpg.accel.%s", tagName))
+        end
+
         if acceleratorLoader ~= nil then
             accelerator = acceleratorLoader()
         end
@@ -222,9 +240,12 @@ function rpg.smf.save(myheader, myrolls, myresults, myfooter, class)
         BodyResponse = BodyResponse .. '<div class="empty">'
         BodyResponse = BodyResponse .. BbcodeToHtml(myfooter)
         BodyResponse = BodyResponse .. '</div></div></div></body></html>'
+        return
 end
 
 -- Wrapper simulant l'environnement de PlaneteRoliste : fonction striptitle du module smf
 function rpg.smf.striptitle(s)
     return s, ''
 end
+
+print('fin wrapper')
