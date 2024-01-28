@@ -30,7 +30,7 @@ end
 --	error("Could not open the input file `" .. args[2] .. "`", 0)
 --end
 
- scriptName = args[1]
+ScriptName = args[1]
 
 
 
@@ -38,18 +38,24 @@ end
 require "scripts.wrapperPlaneteRoliste"
 -- require "scripts.PRscript"
 -- pcall(require, 'scripts.wfrp4')
-local scriptPath = "scripts." .. scriptName
+local ScriptPath = "scripts." .. ScriptName
 if args[2] == 'minified' then
-  scriptPath = scriptPath .. "-minified"
+  ScriptPath = ScriptPath .. "-minified"
 elseif args[2] == 'original' or args[2] == nil then
-	scriptPath = scriptPath
+	ScriptPath = ScriptPath
 else
 	usageError()
 end
 
-print(scriptPath)
 
-pcall(require, scriptPath .. "")
+
+local status, err = pcall(require, ScriptPath .. "")
+
+if status then
+  print("Status ok", status, ScriptPath)
+else
+  print("Erreur dans " .. ScriptPath, err.code, err)
+end
 
 BodyResponse = [[
     <!DOCTYPE html><html><head><style>
@@ -212,7 +218,7 @@ span.rp_color_ooc{
   code {
     width: 100vw;
     padding-top: 0.5em;
-    font-size: 1.2rem;
+    font-size: 0.8rem;
     text-align: center;
     display: inline-block;
   }
@@ -223,7 +229,13 @@ span.rp_color_ooc{
 
 -- Déclenchement du script xxx-caller correspondant.
 
-pcall(require, "scripts." .. scriptName .. "-caller")
+local callerStatus, callerErr = pcall(require, "scripts." .. ScriptName .. "-caller")
+
+if callerStatus then
+  print("Status ok", callerStatus, ScriptPath)
+else
+  print("Erreur dans " .. ScriptPath, callerErr.code, callerErr)
+end
 
 print(string.format("\n\nVotre page de test est disponible sur http://%s:%s%s\n", Server.host, Server.port, Server.location))
 
