@@ -288,10 +288,13 @@ function GetExtraDR(seuilDeBase)
     return extraDR
 end
 
-function GetDegatsNonCritiques(DRattaquant, BFattaquant, DRattaque, BEattaque, degatsArme, atoutsDefautsArme)
+function GetDegatsNonCritiques(DRattaquant, BFattaquant, DRattaque, BEattaque, armeEnMain)
     local degatsEffectifs = 0
     local bilanDR = DRattaquant - DRattaque
-    local appliqueBF, degatsEffectifsArme = string.match(degatsArme, ".*(%+BF)%s*(%+%d*)")
+    local degatsArme = armeEnMain['Degats']
+
+    local appliqueBF = string.match(degatsArme, ".*(%+BF)%s*%+%d*") or false
+    local degatsEffectifsArme = string.match(degatsArme, ".*%s*(%+%d*)") or 0
     appliqueBF = appliqueBF ~= nil
     degatsEffectifsArme = tonumber(degatsEffectifsArme)
 
@@ -304,8 +307,8 @@ function GetDegatsNonCritiques(DRattaquant, BFattaquant, DRattaque, BEattaque, d
     degatsEffectifs = degatsEffectifsArme + bilanDR
     local libelleCalculDegats = string.format("%dDR %s", bilanDR, degatsArme)
     local libelleBE = ""
-
-    if (ModuloBEArmeOffensive < 1 and not atoutsDefautsArme["inoffensive"] and true) then
+    print('armeEnMain["inoffensive"]', armeEnMain["inoffensive"])
+    if (ModuloBEArmeOffensive < 1 and not armeEnMain["inoffensive"] and true) then
         degatsEffectifs = degatsEffectifs - math.ceil(BEattaque * ModuloBEArmeOffensive)
         libelleBE = string.format(" - (%dBE * %.1f)", BEattaque, ModuloBEArmeOffensive)
     else
@@ -331,28 +334,31 @@ function getFromRange(value, range)
 end
 
 function GetLocalisationDegats(d100)
+    print("GetLocalisationDegats:d100:", d100)
     d100 = tonumber(d100)
     local ranges = {
-        {1, 9, "Tête"},
-        {21, 41, "Bras secondaire"},
-        {25, 44, "Bras principal"},
-        {45, 79, "Corps"},
-        {80, 89, "Jambe gauche"},
-        {90, 100, "Jambe droite"}
+        {1, 9, "tete"},
+        {21, 41, "brasSecondaire"},
+        {25, 44, "brasPrincipal"},
+        {45, 79, "corps"},
+        {80, 89, "jambeGauche"},
+        {90, 100, "jambeDroite"}
     }
     return getFromRange(d100, ranges)
 end
 
 function GetLibelleLocalisationDegats(localisationDegats)
+    print("GetLibelleLocalisationDegats:localisationDegats:", localisationDegats)
     local libelleLocalisationDegats = {}
     local prefixe = "LibLocDegats"
-    localisationDegats["tête"] = GetExternalString(prefixe .. "Tete")
-    localisationDegats["bras secondaire"] = GetExternalString(prefixe .. "BrasG")
-    localisationDegats["bras principal"] = GetExternalString(prefixe .. "BrasD")
-    localisationDegats["corps"] = GetExternalString(prefixe .. "Corps")
-    localisationDegats["jambe gauche"] = GetExternalString(prefixe .. "JambeG")
-    localisationDegats["jambe droite"] = GetExternalString(prefixe .. "JambeD")
-    return localisationDegats[localisationDegats]
+    libelleLocalisationDegats["tete"] = GetExternalString(prefixe .. "Tete")
+    libelleLocalisationDegats["brasSecondaire"] = GetExternalString(prefixe .. "BrasG")
+    libelleLocalisationDegats["brasPrincipal"] = GetExternalString(prefixe .. "BrasD")
+    libelleLocalisationDegats["corps"] = GetExternalString(prefixe .. "Corps")
+    libelleLocalisationDegats["jambeGauche"] = GetExternalString(prefixe .. "JambeG")
+    libelleLocalisationDegats["jambeDroite"] = GetExternalString(prefixe .. "JambeD")
+    print("localisationDegats[localisationDegats]:", libelleLocalisationDegats[localisationDegats])
+    return libelleLocalisationDegats[localisationDegats]
 end
 
 function GetLibelleEffetMaladresse(d100, attaquant)
@@ -371,10 +377,11 @@ function GetLibelleEffetMaladresse(d100, attaquant)
 end
 
 function GetLibelleEffetCoupCritiques(localisationDegats, attaquant, attaque)
+    print("GetLibelleEffetCoupCritiques:localisationDegats:", localisationDegats)
     local jet = rpg.roll.dice(2, 0, 9)
     local d1 = jet[1]
     local d2 = jet[2]
-    local testVar = "testVar :)"
+
 
     local d100 = GetD100(d1, d2)
 
@@ -890,42 +897,349 @@ function GetAtoutsDefautsArme(s)
     return atoutsDefautsArme
 end
 
+function isEmptyField(field)
+  if (field ~= "" and field ~= nil and not (type(field) == "table" and #field == 0) and true) then
+    return false
+  else
+    return true
+  end
+end
+
+function getFieldValue(idPersonnage, fieldName)
+  if not isEmptyField(rpg.character.getfield(idPersonnage, fieldName)) then
+    return rpg.character.getfield(idPersonnage, fieldName)
+  else
+    return nil
+  end
+end
+
+function GetProtection(idPersonnage, localisation, arme, d1, d2)
+
+  local armure = {}
+  armure["tete"] = {}
+  armure["corps"] = {}
+  armure["bras"] = {}
+  armure["jambes"] = {}
+
+  local protectionLocalisation = 0
+
+  local protectionTete = 0
+  local atoutsDefautsTete = false
+
+  local protectionCorps = 0
+  local atoutsDefautsCorps = false
+
+  local protectionBras = 0
+  local atoutsDefautsBras = false
+
+  local protectionJambes = 0
+  local atoutsDefautsJambes = false
+
+  for i = 2, 6, 1 do
+    if (getFieldValue(idPersonnage, string.format("b22_l%d_f6c", i)) ~= "" and getFieldValue(idPersonnage, string.format("b22_l%d_f6c", i)) ~= nil and true) then
+      print("Pièce d'armure portée")
+
+    end
+  end
+
+  return protectionLocalisation
+end
+
+
 function GetArmesEnMain(idPersonnage)
-    local armeEnMain, deuxiemeArme = {}, {}
+    local armeEnMain1, armeEnMain2 = {}, {}
+    local aUneArmeEnMainPrincipale, aUneArmeEnMainSecondaire = false, false
+    local mainNue = {}
+      mainNue["Nom"] = "Main nue"
+      mainNue["Groupe"] = "Base"
+      mainNue["Encombrement"] = 0
+      mainNue["PorteeAllonge"] = "Personnelle"
+      mainNue["Degats"] = "+BF +0"
+      mainNue["AtoutsDefauts"] = "Inoffensive"
+      mainNue["inoffensive"] = true
+
+    print("GetArmesEnMain:idPersonnage:", idPersonnage)
 
     for i = 2, 11, 1 do
-        local nomArme = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f1i", i))
-        if (rpg.character.getfield(idPersonnage, string.format("b43_l%d_f7c", i)) ~= "" and true) then
-            armeEnMain["Nom"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f1i", i))
-            armeEnMain["Groupe"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f2i", i))
-            armeEnMain["Encombrement"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f3i", i))
-            armeEnMain["PorteeAllonge"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f4i", i))
-            armeEnMain["Degats"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f5i", i))
-            armeEnMain["AtoutsDefauts"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f6i", i))
-        end
-    end
+        if (getFieldValue(idPersonnage, string.format("b42_l%d_f7c", i)) ~= "" and getFieldValue(idPersonnage, string.format("b42_l%d_f7c", i)) ~= nil and true) then
+            -- print(string.format("checkboxMain1, ligne %d:cas if   :", i), getFieldValue(idPersonnage, string.format("b42_l%d_f7c", i)))
 
-    for i = 2, 11, 1 do
-        local nomArme = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f1i", i))
-        if (rpg.character.getfield(idPersonnage, string.format("b43_l%d_f8c", i)) ~= "" and true) then
-            deuxiemeArme["Nom"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f1i", i))
-            deuxiemeArme["Groupe"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f2i", i))
-            deuxiemeArme["Encombrement"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f3i", i))
-            deuxiemeArme["PorteeAllonge"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f4i", i))
-            deuxiemeArme["Degats"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f5i", i))
-            deuxiemeArme["AtoutsDefauts"] = rpg.character.getfield(idPersonnage, string.format("b43_l%d_f6i", i))
+            aUneArmeEnMainPrincipale = true
+
+            local nomArme = getFieldValue(idPersonnage, string.format("b42_l%d_f1i", i))
+            local groupeArme = getFieldValue(idPersonnage, string.format("b42_l%d_f2i", i))
+            local encombrementArme = getFieldValue(idPersonnage, string.format("b42_l%d_f3i", i))
+            local porteeAllongeArme = getFieldValue(idPersonnage, string.format("b42_l%d_f4i", i))
+            local degatsArme = getFieldValue(idPersonnage, string.format("b42_l%d_f5i", i))
+            local atoutsDefautsArme = getFieldValue(idPersonnage, string.format("b42_l%d_f6i", i))
+            armeEnMain1["Nom"] = nomArme
+            armeEnMain1["Groupe"] = groupeArme
+            armeEnMain1["Encombrement"] = encombrementArme
+            armeEnMain1["PorteeAllonge"] = porteeAllongeArme
+            armeEnMain1["Degats"] = degatsArme
+            armeEnMain1["AtoutsDefauts"] = atoutsDefautsArme
+            armeEnMain1["enroulement"] = false
+            armeEnMain1["poudre"] = false
+            armeEnMain1["repetition"] = false
+            armeEnMain1["assommante"] = false
+            armeEnMain1["defensive"] = false
+            armeEnMain1["devastatrice"] = false
+            armeEnMain1["empaleuse"] = false
+            armeEnMain1["explosion"] = false
+            armeEnMain1["immobilisante"] = false
+            armeEnMain1["incassable"] = false
+            armeEnMain1["percutante"] = false
+            armeEnMain1["perforante"] = false
+            armeEnMain1["perturbante"] = false
+            armeEnMain1["piegeLame"] = false
+            armeEnMain1["pistolet"] = false
+            armeEnMain1["pointue"] = false
+            armeEnMain1["precise"] = false
+            armeEnMain1["protectrice"] = false
+            armeEnMain1["rapide"] = false
+            armeEnMain1["taille"] = false
+            armeEnMain1["dangereuse"] = false
+            armeEnMain1["epuisante"] = false
+            armeEnMain1["imprecise"] = false
+            armeEnMain1["inoffensive"] = false
+            armeEnMain1["lente"] = false
+            armeEnMain1["recharge"] = false
+
+          if (armeEnMain1["AtoutsDefauts"] ~= nil) then
+            print('armeEnMain1["AtoutsDefauts"]', armeEnMain1["AtoutsDefauts"])
+            print("atoutsDefautsArme", atoutsDefautsArme)
+
+            local atoutEnroulement = string.match(atoutsDefautsArme, ".*(Enroulement).*")
+            armeEnMain1["enroulement"] = atoutEnroulement ~= nil
+
+            local atoutPoudre = string.match(atoutsDefautsArme, ".*(Poudre).*")
+            armeEnMain1["poudre"] = atoutPoudre ~= nil
+        
+            local atoutRepetition = string.match(atoutsDefautsArme, ".*Répétition%s*%((%d*)%).*")
+            armeEnMain1["repetition"] = atoutRepetition
+            print('armeEnMain1["repetition"]', armeEnMain1["repetition"])
+            local atoutAssommante = string.match(atoutsDefautsArme, ".*(Assommante).*")
+            armeEnMain1["assommante"] = atoutAssommante ~= nil
+        
+            local atoutDefensive = string.match(atoutsDefautsArme, ".*(Défensive).*")
+            armeEnMain1["defensive"] = atoutDefensive ~= nil
+        
+            local atoutDevastatrice = string.match(atoutsDefautsArme, ".*(Devastatrice).*")
+            armeEnMain1["devastatrice"] = atoutDevastatrice ~= nil
+        
+            local atoutEmpaleuse = string.match(atoutsDefautsArme, ".*(Empaleuse).*")
+            armeEnMain1["empaleuse"] = atoutEmpaleuse ~= nil
+        
+            local atoutExplosion = string.match(atoutsDefautsArme, ".*Explosion%s*%((%d*)%).*")
+            armeEnMain1["explosion"] = atoutExplosion
+        
+            local atoutImmobilisante = string.match(atoutsDefautsArme, ".*(Immobilisante).*")
+            armeEnMain1["immobilisante"] = atoutImmobilisante ~= nil
+        
+            local atoutIncassable = string.match(atoutsDefautsArme, ".*(Incassable).*")
+            armeEnMain1["incassable"] = atoutIncassable ~= nil
+        
+            local atoutPercutante = string.match(atoutsDefautsArme, ".*(Percutante).*")
+            armeEnMain1["percutante"] = atoutPercutante ~= nil
+        
+            local atoutPerforante = string.match(atoutsDefautsArme, ".*(Perforante).*")
+            armeEnMain1["perforante"] = atoutPerforante ~= nil
+        
+            local atoutPerturbante = string.match(atoutsDefautsArme, ".*(Perturbante).*")
+            armeEnMain1["perturbante"] = atoutPerturbante ~= nil
+        
+            local atoutPiegeLame = string.match(atoutsDefautsArme, ".*(Piège-lame).*")
+            armeEnMain1["piegeLame"] = atoutPiegeLame ~= nil
+        
+            local atoutPistolet = string.match(atoutsDefautsArme, ".*(Pistolet).*")
+            armeEnMain1["pistolet"] = atoutPistolet ~= nil
+        
+            local atoutPointue = string.match(atoutsDefautsArme, ".*(Pointue).*")
+            armeEnMain1["pointue"] = atoutPointue ~= nil
+        
+            local atoutPrecise = string.match(atoutsDefautsArme, ".*(Précise).*")
+            armeEnMain1["precise"] = atoutPrecise ~= nil
+        
+            local atoutProtectrice = string.match(atoutsDefautsArme, ".*Protectrice%s*%((%d*)%).*")
+            armeEnMain1["protectrice"] = atoutProtectrice ~= nil
+        
+            local atoutRapide = string.match(atoutsDefautsArme, ".*(Rapide).*")
+            armeEnMain1["rapide"] = atoutRapide ~= nil
+        
+            local atoutTaille = string.match(atoutsDefautsArme, ".*(Taille).*")
+            armeEnMain1["taille"] = atoutTaille ~= nil
+        
+            local defautDangereuse = string.match(atoutsDefautsArme, ".*(Dangereuse).*")
+            armeEnMain1["dangereuse"] = defautDangereuse ~= nil
+        
+            local defautEpuisante = string.match(atoutsDefautsArme, ".*(Épuisante).*")
+            armeEnMain1["epuisante"] = defautEpuisante ~= nil
+        
+            local defautImprecise = string.match(atoutsDefautsArme, ".*(Imprécise).*")
+            armeEnMain1["imprecise"] = defautImprecise ~= nil
+        
+            local defautInoffensive = string.match(atoutsDefautsArme, ".*(Inoffensive).*")
+            armeEnMain1["inoffensive"] = defautInoffensive ~= nil
+            print('armeEnMain1["inoffensive"]', armeEnMain1["inoffensive"])
+
+            local defautLente = string.match(atoutsDefautsArme, ".*(Lente).*")
+            armeEnMain1["lente"] = defautLente ~= nil
+
+            local defautRecharge = string.match(atoutsDefautsArme, ".*Recharge%s*%((%d*)%).*")
+            armeEnMain1["recharge"] = defautRecharge ~= nil
+          end
+          else
+            -- print(string.format("checkboxMain1, ligne %d:cas else:", i), getFieldValue(idPersonnage, string.format("b42_l%d_f7c", i)))
         end
     end
-    print("armeEnMain, deuxiemeArme:", armeEnMain, deuxiemeArme)
-    return armeEnMain, deuxiemeArme
+    for i = 2, 11, 1 do
+      if (getFieldValue(idPersonnage, string.format("b42_l%d_f8c", i)) ~= "" and getFieldValue(idPersonnage, string.format("b42_l%d_f8c", i)) ~= nil and true) then
+          aUneArmeEnMainSecondaire = true
+
+          local nomArme = getFieldValue(idPersonnage, string.format("b42_l%d_f1i", i))
+          local groupeArme = getFieldValue(idPersonnage, string.format("b42_l%d_f2i", i))
+          local encombrementArme = getFieldValue(idPersonnage, string.format("b42_l%d_f3i", i))
+          local porteeAllongeArme = getFieldValue(idPersonnage, string.format("b42_l%d_f4i", i))
+          local degatsArme = getFieldValue(idPersonnage, string.format("b42_l%d_f5i", i))
+          local atoutsDefautsArme = getFieldValue(idPersonnage, string.format("b42_l%d_f6i", i))
+          -- print(nomArme, groupeArme, encombrementArme, porteeAllongeArme, degatsArme, atoutsDefautsArme)
+          armeEnMain2["Nom"] = nomArme
+          armeEnMain2["Groupe"] = groupeArme
+          armeEnMain2["Encombrement"] = encombrementArme
+          armeEnMain2["PorteeAllonge"] = porteeAllongeArme
+          armeEnMain2["Degats"] = degatsArme
+          armeEnMain2["AtoutsDefauts"] = atoutsDefautsArme
+
+          armeEnMain2["enroulement"] = false
+          armeEnMain2["poudre"] = false
+          armeEnMain2["repetition"] = false
+          armeEnMain2["assommante"] = false
+          armeEnMain2["defensive"] = false
+          armeEnMain2["devastatrice"] = false
+          armeEnMain2["empaleuse"] = false
+          armeEnMain2["explosion"] = false
+          armeEnMain2["immobilisante"] = false
+          armeEnMain2["incassable"] = false
+          armeEnMain2["percutante"] = false
+          armeEnMain2["perforante"] = false
+          armeEnMain2["perturbante"] = false
+          armeEnMain2["piegeLame"] = false
+          armeEnMain2["pistolet"] = false
+          armeEnMain2["pointue"] = false
+          armeEnMain2["precise"] = false
+          armeEnMain2["protectrice"] = false
+          armeEnMain2["rapide"] = false
+          armeEnMain2["taille"] = false
+          armeEnMain2["dangereuse"] = false
+          armeEnMain2["epuisante"] = false
+          armeEnMain2["imprecise"] = false
+          armeEnMain2["inoffensive"] = false
+          armeEnMain2["lente"] = false
+          armeEnMain2["recharge"] = false
+
+        if (armeEnMain2["AtoutsDefauts"] ~= nil) then
+          print('armeEnMain2["AtoutsDefauts"]', armeEnMain2["AtoutsDefauts"])
+          print("atoutsDefautsArme", atoutsDefautsArme)
+
+          local atoutEnroulement = string.match(atoutsDefautsArme, ".*(Enroulement).*")
+          armeEnMain2["enroulement"] = atoutEnroulement ~= nil
+
+          local atoutPoudre = string.match(atoutsDefautsArme, ".*(Poudre).*")
+          armeEnMain2["poudre"] = atoutPoudre ~= nil
+      
+          local atoutRepetition = string.match(atoutsDefautsArme, ".*Répétition%s*%((%d*)%).*")
+          armeEnMain2["repetition"] = atoutRepetition
+          print('armeEnMain2["repetition"]', armeEnMain2["repetition"])
+          local atoutAssommante = string.match(atoutsDefautsArme, ".*(Assommante).*")
+          armeEnMain2["assommante"] = atoutAssommante ~= nil
+      
+          local atoutDefensive = string.match(atoutsDefautsArme, ".*(Défensive).*")
+          armeEnMain2["defensive"] = atoutDefensive ~= nil
+      
+          local atoutDevastatrice = string.match(atoutsDefautsArme, ".*(Devastatrice).*")
+          armeEnMain2["devastatrice"] = atoutDevastatrice ~= nil
+      
+          local atoutEmpaleuse = string.match(atoutsDefautsArme, ".*(Empaleuse).*")
+          armeEnMain2["empaleuse"] = atoutEmpaleuse ~= nil
+      
+          local atoutExplosion = string.match(atoutsDefautsArme, ".*Explosion%s*%((%d*)%).*")
+          armeEnMain2["explosion"] = atoutExplosion
+      
+          local atoutImmobilisante = string.match(atoutsDefautsArme, ".*(Immobilisante).*")
+          armeEnMain2["immobilisante"] = atoutImmobilisante ~= nil
+      
+          local atoutIncassable = string.match(atoutsDefautsArme, ".*(Incassable).*")
+          armeEnMain2["incassable"] = atoutIncassable ~= nil
+      
+          local atoutPercutante = string.match(atoutsDefautsArme, ".*(Percutante).*")
+          armeEnMain2["percutante"] = atoutPercutante ~= nil
+      
+          local atoutPerforante = string.match(atoutsDefautsArme, ".*(Perforante).*")
+          armeEnMain2["perforante"] = atoutPerforante ~= nil
+      
+          local atoutPerturbante = string.match(atoutsDefautsArme, ".*(Perturbante).*")
+          armeEnMain2["perturbante"] = atoutPerturbante ~= nil
+      
+          local atoutPiegeLame = string.match(atoutsDefautsArme, ".*(Piège-lame).*")
+          armeEnMain2["piegeLame"] = atoutPiegeLame ~= nil
+      
+          local atoutPistolet = string.match(atoutsDefautsArme, ".*(Pistolet).*")
+          armeEnMain2["pistolet"] = atoutPistolet ~= nil
+      
+          local atoutPointue = string.match(atoutsDefautsArme, ".*(Pointue).*")
+          armeEnMain2["pointue"] = atoutPointue ~= nil
+      
+          local atoutPrecise = string.match(atoutsDefautsArme, ".*(Précise).*")
+          armeEnMain2["precise"] = atoutPrecise ~= nil
+      
+          local atoutProtectrice = string.match(atoutsDefautsArme, ".*Protectrice%s*%((%d*)%).*")
+          armeEnMain2["protectrice"] = atoutProtectrice ~= nil
+      
+          local atoutRapide = string.match(atoutsDefautsArme, ".*(Rapide).*")
+          armeEnMain2["rapide"] = atoutRapide ~= nil
+      
+          local atoutTaille = string.match(atoutsDefautsArme, ".*(Taille).*")
+          armeEnMain2["taille"] = atoutTaille ~= nil
+      
+          local defautDangereuse = string.match(atoutsDefautsArme, ".*(Dangereuse).*")
+          armeEnMain2["dangereuse"] = defautDangereuse ~= nil
+      
+          local defautEpuisante = string.match(atoutsDefautsArme, ".*(Épuisante).*")
+          armeEnMain2["epuisante"] = defautEpuisante ~= nil
+      
+          local defautImprecise = string.match(atoutsDefautsArme, ".*(Imprécise).*")
+          armeEnMain2["imprecise"] = defautImprecise ~= nil
+      
+          local defautInoffensive = string.match(atoutsDefautsArme, ".*(Inoffensive).*")
+          armeEnMain2["inoffensive"] = defautInoffensive ~= nil
+          print('armeEnMain2["inoffensive"]', armeEnMain2["inoffensive"])
+
+          local defautLente = string.match(atoutsDefautsArme, ".*(Lente).*")
+          armeEnMain2["lente"] = defautLente ~= nil
+
+          local defautRecharge = string.match(atoutsDefautsArme, ".*Recharge%s*%((%d*)%).*")
+          armeEnMain2["recharge"] = defautRecharge ~= nil
+        end
+      end
+  end
+
+  if aUneArmeEnMainPrincipale then
+    armeEnMainPrincipale = armeEnMain1
+  else
+    armeEnMainPrincipale = mainNue
+  end
+  if aUneArmeEnMainSecondaire then
+    armeEnMainSecondaire = armeEnMain2
+  else
+    armeEnMainSecondaire = mainNue
+  end
+    return armeEnMainPrincipale, armeEnMainSecondaire
 end
 
 function GetAvantage(idPersonnage)
-    -- print("GetAvantage1", rpg.character.getfield(idPersonnage, string.format("b46_l1_f1c")))
-    -- print("GetAvantage2", rpg.character.getfield(idPersonnage, string.format("b46_l1_f2c")))
     local valeurAvantage = 0
     for i = 1, 10, 1 do
-        if (rpg.character.getfield(idPersonnage, string.format("b46_l1_f%dc", i)) == "on" and true) then
+        if (rpg.character.getfield(idPersonnage, string.format("b47_l1_f%dc", i)) == "on" and true) then
             valeurAvantage = i
         end
     end
@@ -943,8 +1257,8 @@ function GetBonusForce(idPersonnage)
 end
 
 function GetBonusEndurance(idPersonnage)
-    local bonusEndurance = tonumber(rpg.character.getfield(idPersonnage, "b40_l2_f1i")) or 0
-
+    local bonusEndurance = tonumber(rpg.character.getfield(idPersonnage, "b40_l2_f1i"))/2 or 0
+    bonusEndurance = math.floor(bonusEndurance)
     if (bonusEndurance > 0) then
         return bonusEndurance
     else
@@ -962,7 +1276,7 @@ function EvaluateTest(
     modificateurDifficulte,
     d1,
     d2)
-    print("EvaluateTest", typetest, competence, seuilBase, seuilEffectif, difficulte, modificateurDifficulte, d1, d2)
+
     typetest = string.lower(typetest)
     local syntheseResultat = ""
     local prefixe = "EvaTst"
@@ -971,7 +1285,6 @@ function EvaluateTest(
             local myHeaderTree = BBTagBuilder("div", nil, nil, nil, "display: flex; color: white")
             local columns1 =
                 myHeaderTree.addChild("div", nil, nil, nil, "display: flex; flex-direction: column; width: 100%")
-
             columns1.addChild(
                 "span",
                 string.format("Résultat du Test %s", typetest),
@@ -1171,8 +1484,6 @@ function EvaluateTestOppose(
 
     local libelleProtagoniste1 = protagoniste1 or "Protagoniste 1"
     local libelleProtagoniste2 = protagoniste2 or "Protagoniste 2"
-
-    -- getBBTag(libelleProtagoniste1, "div", nil, "display: flex; font-weight: bold", nil)
 
     local myHeaderTree = BBTagBuilder("div", nil, nil, nil, "display: flex; color: white")
     local columns1 = myHeaderTree.addChild("div", nil, nil, nil, "display: flex; flex-direction: column; width: 100%")
@@ -1458,6 +1769,7 @@ end
 function EvaluateTestCorpsACorps(args)
     print("EvaluateTestCorpsACorps")
     local protagoniste1,
+        competence1,
         seuilBase1,
         seuilEffectif1,
         difficulte1,
@@ -1465,8 +1777,10 @@ function EvaluateTestCorpsACorps(args)
         d1_1,
         d2_1,
         bonusForce1,
-        atoutsArme1,
+        armesEnMainPrincipale1,
+        armesEnMainSecondaire1,
         protagoniste2,
+        competence2,
         seuilBase2,
         seuilEffectif2,
         difficulte2,
@@ -1474,116 +1788,66 @@ function EvaluateTestCorpsACorps(args)
         d1_2,
         d2_2,
         bonusEndurance2,
-        atoutsArme2 = vcUnpack(args)
+        armesEnMainPrincipale2,
+        armesEnMainSecondaire2 = vcUnpack(args)
 
     local myheader = ""
+    local myrolls = ""
+    local myresults = ""
+    local myfooter = ""
     local libelleProtagoniste1 = protagoniste1 or "Protagoniste 1"
     local libelleProtagoniste2 = protagoniste2 or "Protagoniste 2"
     local syntheseResultat = ""
-    myheader = myheader .. '[div style="display: flex; color: white"]'
-    myheader = myheader .. '[div style="display: flex; flex-direction: column; width: 100%"]'
-    myheader =
-        myheader .. '[span style="font-size: 1.2em; font-weight: bold; text-align: center; padding-bottom: 10px"]'
-    myheader = myheader .. "Attaque au Corps-à-Corps"
-    myheader = myheader .. "[/span]"
-    myheader = myheader .. '[div style="display: flex; width: 100%"]'
-    myheader = myheader .. '[div style="display: flex; flex-direction: column; flex-grow: 1; align-items: center"]'
-    myheader = myheader .. '[div style="display: flex; font-weight: bold"]'
-    myheader = myheader .. "Attaquant"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex; font-weight: bold"]'
-    myheader = myheader .. libelleProtagoniste1
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. "Seuil de base : " .. seuilBase1
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader =
-        myheader ..
-        "Difficulté " ..
-            GetLibelleDifficulte(difficulte1) .. " (" .. GetLibelleModificateurDifficulte(difficulte1) .. ")"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. avantage1 .. " Avantages (" .. GetLibelleModificateurAvantage(avantage1) .. ")"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. "Seuil effectif : " .. seuilEffectif1
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. "Bonus de Force : " .. bonusForce1
-    myheader = myheader .. "[/div]"
 
-    if #atoutsArme1 > 0 then
-        myheader = myheader .. '[div style="display: flex"]'
-        myheader = myheader .. "[span]Atouts d'Arme : [/span]"
-        for clef, valeur in pairs(atoutsArme1) do
-            if (valeur) then
-                myheader = myheader .. "[span]" .. valeur .. "[/span]"
-            end
-        end
-        myheader = myheader .. "[/div]"
+
+
+    local headerRoot = BBTagBuilder("div", nil, nil, nil, "display: flex; color: white")
+    local innerBlock = headerRoot.addChild("div", nil, nil, nil, "display: flex; flex-direction: column; width: 100%")
+
+
+    innerBlock.addChild("span", "Attaque au Corps-à-Corps", nil, nil, "font-size: 1.2em; font-weight: bold; text-align: center; padding-bottom: 10px")
+
+    local columnsInitial = innerBlock.addChild("div", nil, nil, nil, "display: flex; width: 100%")
+    local columnInitial1 = columnsInitial.addChild("div", nil, nil, nil, "display: flex; flex-direction: column; flex-grow: 1; align-items: center")
+
+    columnInitial1.addChild("div", "Attaquant", nil, nil, "display: flex; font-weight: bold")
+    columnInitial1.addChild("div", libelleProtagoniste1, nil, nil, "display: flex; font-weight: bold")
+    columnInitial1.addChild("div", "Seuil de base : " .. seuilBase1, nil, nil, "display: flex;")
+    columnInitial1.addChild("div", "Difficulté " .. GetLibelleDifficulte(difficulte1) .. " (" .. GetLibelleModificateurDifficulte(difficulte1) .. ")", nil, nil, "display: flex")
+    columnInitial1.addChild("div", avantage1 .. " Avantages (" .. GetLibelleModificateurAvantage(avantage1) .. ")", nil, nil, "display: flex")                
+    columnInitial1.addChild("div", "Seuil effectif : " .. seuilEffectif1, nil, nil, "display: flex")
+    columnInitial1.addChild("div", "Bonus de Force : " .. bonusForce1, nil, nil, "display: flex")
+    columnInitial1.addChild("div", "Arme : " .. armesEnMainPrincipale1['Nom'], nil, nil, "display: flex")
+
+    if (armesEnMainSecondaire1['Nom'] ~= 'Main nue' ) then
+        local blocArme = columnInitial1.addChild("div", nil, nil, nil, "display: flex")
+        blocArme.addChild("span", "Arme secondaire : ", nil, nil, nil)
+        blocArme.addChild("span", armesEnMainSecondaire1['Nom'], nil, nil, nil)
     end
-    myheader = myheader .. "[/div]"
 
-    myheader = myheader .. '[hr style="border: color; margin: 5px"]'
+    columnsInitial.addChild('hr', nil, nil, nil, "border: color; margin: 5px")
+    local columnInitial2 = columnsInitial.addChild("div", nil, nil, nil, 'display: flex; flex-direction: column; flex-grow: 1; align-items: center')
+    columnInitial2.addChild("div", "Défenseur", nil, nil, "display: flex; font-weight: bold")
+    columnInitial2.addChild("div", libelleProtagoniste2, nil, nil, "display: flex; font-weight: bold")
+    columnInitial2.addChild("div", "Seuil de base : " .. seuilBase2, nil, nil, "display: flex;")
+    columnInitial2.addChild("div", "Niveau " .. GetLibelleDifficulte(difficulte2) .. " (" .. GetLibelleModificateurDifficulte(difficulte2) .. ")", nil, nil, "display: flex;")
+    columnInitial2.addChild("div", avantage2 .. " Avantages (" .. GetLibelleModificateurAvantage(avantage2) .. ")", nil, nil, "display: flex;")
+    columnInitial2.addChild("div", "Seuil effectif : " .. seuilEffectif2, nil, nil, "display: flex;")
+    columnInitial2.addChild("div", "Bonus d'Endurance : " .. bonusEndurance2, nil, nil, "display: flex;")
 
-    myheader = myheader .. '[div style="display: flex; flex-direction: column; flex-grow: 1; align-items: center"]'
-    myheader = myheader .. '[div style="display: flex; font-weight: bold"]'
-    myheader = myheader .. "Défenseur"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex; font-weight: bold"]'
-    myheader = myheader .. libelleProtagoniste2
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. "Seuil de base : " .. seuilBase2
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader =
-        myheader ..
-        "Niveau " .. GetLibelleDifficulte(difficulte2) .. " (" .. GetLibelleModificateurDifficulte(difficulte2) .. ")"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. avantage2 .. " Avantages (" .. GetLibelleModificateurAvantage(avantage2) .. ")"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. "Seuil effectif : " .. seuilEffectif2
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. '[div style="display: flex"]'
-    myheader = myheader .. "Bonus d'Endurance : " .. bonusEndurance2
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. "[/div]"
-    myheader = myheader .. "[/div]"
 
-    local myrolls = ""
-    myrolls = myrolls .. '[div style="display: flex"]'
-    myrolls = myrolls .. '[div style="display: flex; flex-grow: 1; justify-content: center"]'
-    myrolls =
-        myrolls ..
-        '[div class="yellow_d10" style="display: inline-table;text-align: center;vertical-align:middle;color: black;height: 24px;background-size: cover;width: 28px;text-shadow: -1px -1px 0px rgba(255, 227, 0, 0.3), 1px 1px 1px rgba(168, 129, 11, 0.8);"]'
-    myrolls = myrolls .. d1_1
-    myrolls = myrolls .. "[/div]"
-    myrolls =
-        myrolls ..
-        '[div class="white_d10" style="display: inline-table;text-align: center;vertical-align:middle;color: black;height: 24px;background-size: cover;width: 28px;text-shadow: -1px -1px 0px rgba(255, 227, 0, 0.3), 1px 1px 1px rgba(168, 129, 11, 0.8);"]'
-    myrolls = myrolls .. d2_1
-    myrolls = myrolls .. "[/div]"
-    myrolls = myrolls .. "[/div]"
-    myrolls = myrolls .. '[hr style="border: color; margin: 5px"]'
-    myrolls = myrolls .. '[div style="display: flex; flex-grow: 1; justify-content: center"]'
-    myrolls =
-        myrolls ..
-        '[div class="yellow_d10" style="display: inline-table;text-align: center;vertical-align:middle;color: black;height: 24px;background-size: cover;width: 28px;text-shadow: -1px -1px 0px rgba(255, 227, 0, 0.3), 1px 1px 1px rgba(168, 129, 11, 0.8);"]'
-    myrolls = myrolls .. d1_2
-    myrolls = myrolls .. "[/div]"
-    myrolls =
-        myrolls ..
-        '[div class="white_d10" style="display: inline-table;text-align: center;vertical-align:middle;color: black;height: 24px;background-size: cover;width: 28px;text-shadow: -1px -1px 0px rgba(255, 227, 0, 0.3), 1px 1px 1px rgba(168, 129, 11, 0.8);"]'
-    myrolls = myrolls .. d2_2
-    myrolls = myrolls .. "[/div]"
-    myrolls = myrolls .. "[/div]"
-    myrolls = myrolls .. "[/div]"
+    myheader = headerRoot.build()
+
+    local myRollsRoot = BBTagBuilder("div", nil, nil, nil, "display: flex")
+    local dices1 = myRollsRoot.addChild("div", nil, nil, nil, "display: flex; flex-grow: 1; justify-content: center;")
+    dices1.addChild("div", d1_1, nil, "yellow_d10", GetExternalString("EvaTst2"))
+    dices1.addChild("div", d2_1, nil, "white_d10", GetExternalString("EvaTst2"))
+    myRollsRoot.addChild("hr", nil, nil, nil, "border: color; margin: 5px")
+    local dices2 = myRollsRoot.addChild("div", nil, nil, nil, "display: flex; flex-grow: 1; justify-content: center;")
+    dices2.addChild("div", d1_2, nil, "yellow_d10", GetExternalString("EvaTst2"))
+    dices2.addChild("div", d2_2, nil, "white_d10", GetExternalString("EvaTst2"))
+
+    myrolls = myRollsRoot.build()
 
     local d100_1 = GetD100(d1_1, d2_1)
     local d100_2 = GetD100(d1_2, d2_2)
@@ -1631,26 +1895,17 @@ function EvaluateTestCorpsACorps(args)
         libelleResultat2 = "Échec"
     end
 
-    syntheseResultat1 =
-        string.format("%s %s[br/]avec [u]%d Degrés de Réussite[/u]", libelleResultat1, libelleAmpleur1, degresReussite1)
-    syntheseResultat2 =
-        string.format("%s %s[br/]avec [u]%d Degrés de Réussite[/u]", libelleResultat2, libelleAmpleur2, degresReussite2)
+    syntheseResultat1 = string.format("%s %s[br/]avec [u]%d Degrés de Réussite[/u]", libelleResultat1, libelleAmpleur1, degresReussite1)
+    syntheseResultat2 = string.format("%s %s[br/]avec [u]%d Degrés de Réussite[/u]", libelleResultat2, libelleAmpleur2, degresReussite2)
 
-    local myresults = ""
+    local myResultsRoot = BBTagBuilder("div", nil, nil, nil, "display: flex;")
+    local myResultsBlock1 = myResultsRoot.addChild("div", nil, nil, nil, "display: flex; flex-grow: 1; justify-content: center")
+    myResultsBlock1.addChild("span", syntheseResultat1, nil, nil, "color: white")
+    myResultsRoot.addChild("hr", nil, nil, nil, "border: color; margin: 5px")
+    local myResultsBlock2 = myResultsRoot.addChild("div", nil, nil, nil, "display: flex; flex-grow: 1; justify-content: center")
+    myResultsBlock1.addChild("span", syntheseResultat2, nil, nil, "color: white")
 
-    myresults = myresults .. '[div style="display: flex"]'
-    myresults = myresults .. '[div style="display: flex; flex-grow: 1; justify-content: center"]'
-    myresults = myresults .. '[span class="" style="color: white"]'
-    myresults = myresults .. syntheseResultat1
-    myresults = myresults .. "[/span]"
-    myresults = myresults .. "[/div]"
-    myresults = myresults .. '[hr style="border: color; margin: 5px"]'
-    myresults = myresults .. '[div style="display: flex; flex-grow: 1; justify-content: center"]'
-    myresults = myresults .. '[span class="" style="color: white"]'
-    myresults = myresults .. syntheseResultat2
-    myresults = myresults .. "[/span]"
-    myresults = myresults .. "[/div]"
-    myresults = myresults .. "[/div]"
+    myresults = myResultsRoot.build()
 
     local vainqueur = ""
     local perdant = ""
@@ -1671,17 +1926,20 @@ function EvaluateTestCorpsACorps(args)
     local d2_2_critique = 0
 
     if critique1 then
-        localisationDegats1 = GetLocalisationDegats(rpg.roll.dice(1, 1, 100)[1])
-        d1_1_critique, d2_1_critique, libelleDegats1, ptsBlessureCritique1, effetsSupplementairesCritique1 =
-            GetLibelleEffetCoupCritiques(localisationDegats1, libelleProtagoniste1, libelleProtagoniste2)
+        localisationDegats1 = GetLocalisationDegats(rpg.roll.dice(1, 1, 100)[1]) or ""
+        print("localisationDegats1:critique1", localisationDegats1)
+        d1_1_critique, d2_1_critique, libelleDegats1, ptsBlessureCritique1, effetsSupplementairesCritique1 = GetLibelleEffetCoupCritiques(localisationDegats1, libelleProtagoniste1, libelleProtagoniste2)
     else
-        localisationDegats1 = GetLocalisationDegats(d100_1)
+        localisationDegats1 = GetLocalisationDegats(d100_1) or ""
+        print("localisationDegats1:pasCritique1", localisationDegats1)
         libelleDegats1 = GetLibelleLocalisationDegats(localisationDegats1)
+        print("libelleDegats1", libelleDegats1)
     end
     if critique2 then
-        localisationDegats2 = GetLocalisationDegats(rpg.roll.dice(1, 1, 100)[1])
-        d1_2_critique, d2_2_critique, libelleDegats2, ptsBlessureCritique2, effetsSupplementairesCritique2 =
-            GetLibelleEffetCoupCritiques(localisationDegats2, libelleProtagoniste2, libelleProtagoniste1)
+        localisationDegats2 = GetLocalisationDegats(rpg.roll.dice(1, 1, 100)[1]) or ""
+        print("localisationDegats2:critique2", localisationDegats2)
+        d1_2_critique, d2_2_critique, libelleDegats2, ptsBlessureCritique2, effetsSupplementairesCritique2 = GetLibelleEffetCoupCritiques(localisationDegats2, libelleProtagoniste2, libelleProtagoniste1)
+        print("d1_2_critique, d2_2_critique, libelleDegats2, ptsBlessureCritique2, effetsSupplementairesCritique2", d1_2_critique, d2_2_critique, libelleDegats2, ptsBlessureCritique2, effetsSupplementairesCritique2)
     end
     if (succes1 and critique1) then
         libelleAction1 =
@@ -1711,16 +1969,16 @@ function EvaluateTestCorpsACorps(args)
     libelleAction = libelleAction1 .. "[br/]" .. libelleAction2 .. "[br/]"
 
     local degatsEffectifs1, libelleCalculDegats1 =
-        GetDegatsNonCritiques(degresReussite1, bonusForce1, degresReussite2, bonusEndurance2, "+BF +3", atoutsArme1) -- Yann
+        GetDegatsNonCritiques(degresReussite1, bonusForce1, degresReussite2, bonusEndurance2, armesEnMainPrincipale1) -- Yann
     if (degresReussite1 > degresReussite2 and true) then
         libelleAction =
             libelleAction ..
             string.format(
-                "[u]%s attaque avec succès[/u]. Il touche %s %s et occasionne des Dégâts à hauteur de " ..
-                    libelleCalculDegats1 .. " = %d Points de Blessure",
+                "[u]%s attaque avec succès[/u]. Il touche %s %s et occasionne des Dégâts à hauteur de %s = %d Points de Blessure",
                 libelleProtagoniste1,
                 libelleProtagoniste2,
-                localisationDegats2,
+                libelleDegats1,
+                libelleCalculDegats1,
                 degatsEffectifs1
             )
         vainqueur = libelleProtagoniste1
@@ -1852,71 +2110,70 @@ function EvaluateTestCorpsACorps(args)
             libelleActionBis .. "Toutefois, les deux protagonistes ont échoué, quel duel de bras cassés !"
     end
 
-    local myfooter = ""
 
-    myfooter =
-        myfooter ..
-        '[hr style="border: color; margin: 5px; "]' ..
-            '[div style="display: flex;margin-top: 10px"]' ..
-                '[div style="display: flex; flex-grow: 1; justify-content: center"]' ..
-                    '[div style="color: white"]' ..
-                        '[div style="color: white; font-size: 1.2em; font-weight: bold; padding-bottom:5px; line-height: 1.4em"]' ..
-                            libelleAction ..
-                                "[/div]" ..
-                                    '[div style="color: white; font-weight: bold; padding-top:5px"]' ..
-                                        libelleActionBis .. "[/div]" .. "[/div]" .. "[/div]" .. "[/div]"
+    local myFooterRoot = BBTagBuilder("div", nil, nil, nil, "display: flex;margin-top: 10px")
+    local myFooterBlock1 = myFooterRoot.addChild("div", nil, nil, nil, "display: flex;margin-top: 10px")
+    local myFooterBlock1_1 = myFooterBlock1.addChild("div", nil, nil, nil, "display: flex; flex-grow: 1; justify-content: center")
+    local myFooterBlock1_1_1 = myFooterBlock1_1.addChild("div", nil, nil, nil, "color: white")
+    myFooterBlock1_1_1.addChild("hr", nil, nil, nil, "border: color; margin: 5px;")
+    myFooterBlock1_1_1.addChild("div", libelleAction, nil, nil, "color: white; font-size: 1.2em; font-weight: bold; padding-bottom:5px; line-height: 1.4em")
+    myFooterBlock1_1_1.addChild("div", libelleActionBis, nil, nil, "color: white; font-weight: bold; padding-top:5px")
+
+    local myfooter = myFooterRoot.build()
 
     return rpg.smf.save(myheader, myrolls, myresults, myfooter, "wfrp4")
 end
 
 function getNomDuChampPourValeur(nomDuChamp, idPersonnage)
     local champs = {}
+    nomDuChamp = string.lower(nomDuChamp)
 
-    champs["Player"] = "Player"
-    champs["Name"] = "Name"
+    champs["player"] = "Player"
+    champs["name"] = "Name"
 
-    champs["Nom"] = "b2_l1_f1i"
+    champs["nom"] = "b2_l1_f1i"
 
-    champs["Art"] = "b12_l2_f5i"
-    champs["Athlétisme"] = "b12_l3_f5i"
-    champs["Calme"] = "b12_l4_f5i"
-    champs["Charme"] = "b12_l5_f5i"
-    champs["Chevaucher"] = "b12_l6_f5i"
-    champs["Corps à corps (base)"] = "b12_l7_f5i"
-    champs["Corps à corps"] = "b12_l8_f5i"
-    champs["Commandement"] = "b12_l9_f5i"
-    champs["Conduite d'attelage"] = "b12_l10_f5i"
-    champs["Discrétion"] = "b12_l11_f5i"
-    champs["Divertissement"] = "b12_l12_f5i"
-    champs["Emprise sur les animaux"] = "b12_l13_f5i"
-    champs["Escalade"] = "b12_l14_f5i"
-    champs["Esquive"] = "b13_l2_f5i"
-    champs["Intimidation"] = "b13_l3_f5i"
-    champs["Intuition"] = "b13_l4_f5i"
-    champs["Marchandage"] = "b13_l5_f5i"
-    champs["Orientation"] = "b13_l6_f5i"
-    champs["Pari"] = "b13_l7_f5i"
-    champs["Perception"] = "b13_l8_f5i"
-    champs["Ragot"] = "b13_l9_f5i"
-    champs["Ramer"] = "b13_l10_f5i"
-    champs["Résistance"] = "b13_l11_f5i"
-    champs["Résistance à l'alcool"] = "b13_l12_f5i"
-    champs["Subornation"] = "b13_l13_f5i"
-    champs["Survie en extérieur"] = "b13_l14_f5i"
+    champs["art"] = "b12_l2_f5i"
+    champs["athlétisme"] = "b12_l3_f5i"
+    champs["calme"] = "b12_l4_f5i"
+    champs["charme"] = "b12_l5_f5i"
+    champs["chevaucher"] = "b12_l6_f5i"
+    champs["corps à corps (base)"] = "b12_l7_f5i"
+    champs["corps à corps"] = "b12_l8_f5i"
+    champs["commandement"] = "b12_l9_f5i"
+    champs["conduite d'attelage"] = "b12_l10_f5i"
+    champs["discrétion"] = "b12_l11_f5i"
+    champs["divertissement"] = "b12_l12_f5i"
+    champs["emprise sur les animaux"] = "b12_l13_f5i"
+    champs["escalade"] = "b12_l14_f5i"
+    champs["esquive"] = "b13_l2_f5i"
+    champs["intimidation"] = "b13_l3_f5i"
+    champs["intuition"] = "b13_l4_f5i"
+    champs["marchandage"] = "b13_l5_f5i"
+    champs["orientation"] = "b13_l6_f5i"
+    champs["pari"] = "b13_l7_f5i"
+    champs["perception"] = "b13_l8_f5i"
+    champs["ragot"] = "b13_l9_f5i"
+    champs["ramer"] = "b13_l10_f5i"
+    champs["résistance"] = "b13_l11_f5i"
+    champs["résistance à l'alcool"] = "b13_l12_f5i"
+    champs["subornation"] = "b13_l13_f5i"
+    champs["survie en extérieur"] = "b13_l14_f5i"
 
     for i = 2, 14, 1 do
         if
             (rpg.character.getfield(idPersonnage, string.format("b14_l%d_f1i", i)) ~= "" and
                 rpg.character.getfield(idPersonnage, string.format("b14_l%d_f1i", i)) ~= nil and
+                rpg.character.getfield(idPersonnage, string.format("b14_l%d_f1i", i)) ~= "NULL" and
+                type(rpg.character.getfield(idPersonnage, string.format("b14_l%d_f1i", i))) ~= "table" and
                 true)
          then
-            champs[rpg.character.getfield(idPersonnage, string.format("b14_l%d_f1i", i))] =
-                string.format("b14_l%d_f5i", i)
+            local nomCompetenceStockee = string.lower(rpg.character.getfield(idPersonnage, string.format("b14_l%d_f1i", i)))
+            champs[nomCompetenceStockee] = string.format("b14_l%d_f5i", i)
         end
     end
 
     local resultat = champs[nomDuChamp]
-
     return resultat
 end
 
@@ -1929,12 +2186,10 @@ function analyseChaineTest(chaine)
 end
 
 function rpg.accel.ask(s)
-    print("ask", s, _VERSION)
     return launch(s, "ask")
 end
 
 function rpg.accel.test(s)
-    print("test", s, _VERSION)
     return launch(s, "run")
 end
 
@@ -1943,15 +2198,18 @@ function fakelaunch(s, mode)
 end
 
 function GetExternalString(cle)
+    print("GetExternalString:cle:", cle)
     cle = tostring(cle)
-
+    print("GetExternalString:cle:", cle)
     for i = 2, 500, 1 do
         local currentKey = rpg.character.getfield(SourceStrings, string.format("b1_l%d_f1i", i))
         local currentValue = rpg.character.getfield(SourceStrings, string.format("b1_l%d_f2i", i))
         if (currentKey ~= "" and currentKey ~= nil and cle == currentKey) then
+            print("GetExternalString:currentValue:", currentValue)
             return currentValue
         end
     end
+    print("GetExternalString:vide")
     return ""
 end
 
@@ -1978,12 +2236,23 @@ function getExternalFunction(cle)
     return false
 end
 
-function launch(s, mode)
-    print("launch", s, mode)
-    -- local testFunc = getExternalFunction("testExternalFunction")
-    -- local testString= = GetExternalString("ExempleYann")
-    -- local testFormattedString = string.format(GetExternalString("Hey"), 'glandouiller')
 
+function armeHasAtoutDefaut(atoutsDefauts, atoutDefaut)
+  print("armeHasAtoutDefaut:arme,atoutDefaut", arme, atoutDefaut)
+  local atoutsDefauts = string.lower(atoutsDefauts)
+  atoutDefaut = string.lower(atoutDefaut)
+  if (atoutsDefauts == nil or atoutsDefauts == '' ) then
+    print("armeHasAtoutDefaut:nil ou vide")
+    return false
+  elseif string.find(atoutsDefauts, atoutDefaut) then
+    print("armeHasAtoutDefaut:" .. atoutDefaut .. "trouvé")
+    return true
+  end
+  print("armeHasAtoutDefaut:" .. atoutDefaut .. "pas trouvé")
+  return false
+end
+
+function launch(s, mode)
     local fulltag = s
     local s2
     local typesTests = {
@@ -1993,7 +2262,6 @@ function launch(s, mode)
         ["corps-a-corps"] = "Corps à Corps",
         ["distance"] = "Combat à distance"
     }
-    local testTag = ""
 
     local typetest, s = string.match(s, "^([%w%p]*)[%s*](.*)$")
 
@@ -2013,8 +2281,8 @@ function launch(s, mode)
 
     local idPersonnage1 = resultatsTests[1]["idPersonnage"]
     local competence1 = resultatsTests[1]["competence"]
-    local seuilBase1 =
-        tonumber(rpg.character.getfield(idPersonnage1, getNomDuChampPourValeur(competence1, idPersonnage1)))
+
+    local seuilBase1 = tonumber(rpg.character.getfield(idPersonnage1, getNomDuChampPourValeur(competence1, idPersonnage1)))
     local difficulte1 = resultatsTests[1]["difficulte"]
     local libelleDifficulte1 = GetLibelleDifficulte(difficulte1)
     local modificateurDifficulte1 = GetModificateurDifficulte(GetCodeDifficulte(difficulte1))
@@ -2097,8 +2365,6 @@ function launch(s, mode)
 
         if mode == "ask" then
             if typetest == "oppose" or typetest == "corps-a-corps" then
-
-              
                 local myHeaderTree = BBTagBuilder("div", nil, nil, nil, "display: flex; color: white")
                 local columns1 =
                     myHeaderTree.addChild("div", nil, nil, nil, "display: flex; flex-direction: column; width: 100%")
@@ -2154,7 +2420,6 @@ function launch(s, mode)
                     "display: flex"
                 )
                 twocolumns1_2.addChild("div", "Seuil effectif : " .. seuilEffectif2, nil, nil, "display: flex")
-
                 myheader = myHeaderTree.build()
 
                 local myFooterTree = BBTagBuilder(nil, string.format(":test %s:", fulltag), nil, nil, nil)
@@ -2163,23 +2428,20 @@ function launch(s, mode)
 
                 myfooter = myFooterTree.build()
 
-                print("myheader, myrolls, myresults, myfooter ask oppose ou CC", myheader, myrolls, myresults, myfooter)
-
             elseif typetest == "distance" then
                 print("ask distance")
             end
         elseif mode == "run" then
-          print("run", mode, typetest)
-            local d1_1, d1_2, d2_1, d2_2 =
+
+            local d1_1, d2_1, d1_2 , d2_2 =
                 rpg.roll.dice(1, 0, 9)[1],
                 rpg.roll.dice(1, 0, 9)[1],
                 rpg.roll.dice(1, 0, 9)[1],
                 rpg.roll.dice(1, 0, 9)[1]
-            print(d1_1, d1_2, d2_1, d2_2)
-            -- local succes1, succes2 = IsSuccess(GetD100(d1_1, d2_1), seuilBase1), IsSuccess(GetD100(d1_2, d2_2), seuilBase2)
-            -- local echec1, echec2 = IsFailure(GetD100(d1_1, d2_1), seuilEffectif1), IsFailure(GetD100(d1_2, d2_2), seuilEffectif2)
-            -- local critique1, critique2 = IsCritical(typetest, d1_1, d2_1), IsCritical(typetest, d1_2, d2_2)
 
+            local succes1, succes2 = IsSuccess(GetD100(d1_1, d2_1), seuilBase1), IsSuccess(GetD100(d1_2, d2_2), seuilBase2)
+            local echec1, echec2 = IsFailure(GetD100(d1_1, d2_1), seuilEffectif1), IsFailure(GetD100(d1_2, d2_2), seuilEffectif2)
+            local critique1, critique2 = IsCritical(typetest, d1_1, d2_1), IsCritical(typetest, d1_2, d2_2)
 
             if typetest == "oppose" then
                 return EvaluateTestOppose(
@@ -2199,67 +2461,51 @@ function launch(s, mode)
                     d2_2
                 )
             elseif typetest == "corps-a-corps" then
-              print("repere run CC")
-                print(mode, typetest)
-                --local avantage1, avantage2 = GetAvantage(idPersonnage1), GetAvantage(idPersonnage2)
-                --local bonusForce1 = GetBonusForce(idPersonnage1)
-                --local bonusEndurance2 = GetBonusEndurance(idPersonnage2)
-                --local armesEnMain1_1, armesEnMain1_2 = GetArmesEnMain(idPersonnage1)
-                --local armesEnMain2_1, armesEnMain2_2 = GetArmesEnMain(idPersonnage2)
+                local avantage1, avantage2 = GetAvantage(idPersonnage1), GetAvantage(idPersonnage2)
+                seuilEffectif1 = seuilEffectif1 + (avantage1 * 10)
+                seuilEffectif2 = seuilEffectif2 + (avantage2 * 10)
+                local bonusForce1 = GetBonusForce(idPersonnage1)
+                local bonusEndurance2 = GetBonusEndurance(idPersonnage2)
+                local armesEnMainPrincipale1, armesEnMainSecondaire1 = GetArmesEnMain(idPersonnage1)
+                local armesEnMainPrincipale2, armesEnMainSecondaire2 = GetArmesEnMain(idPersonnage2)
+                -- local armure1, armure2 = GetArmure(idPersonnage1), GetArmure(idPersonnage2)
 
-                --print("avantage1", avantage1)
-                --print("avantage2", avantage2)
-                --print("bonusForce1", bonusForce1)
-                --print("bonusEndurance2", bonusEndurance2)
-                --print("armesEnMain1_1", armesEnMain1_1)
-                --[[      print("armesEnMain1[1]", armesEnMain1[1])
-      print("armesEnMain1[2]", armesEnMain1[2])
-      print("armesEnMain2[1]", armesEnMain2[1])
-      print("armesEnMain2[2]", armesEnMain2[2])
-      --]]
-                --local atoutsDefautsArme1, atoutsDefautsArme2 = {}, {}
-                --local atoutsDefautsArme1, atoutsDefautsArme2 = {}, {}
-
-        
-                --[[ return EvaluateTestCorpsACorps({
-        nomPersonnage1,
-        seuilBase1,
-        seuilEffectif1,
-        difficulte1,
-        avantage1,
-        d1_1,
-        d2_1,
-        bonusForce1,
-        armesEnMain1,
-        armure1,
-        nomPersonnage2,
-        seuilBase2,
-        seuilEffectif2,
-        difficulte2,
-        avantage2,
-        d1_2,
-        d2_2,
-        bonusEndurance2,
-        armesEnMain2, 
-        armure2})
-        ]]
-                --return rpg.smf.save("myheader", "myrolls", "myresults", "myfooter", "myclass")
-
+              return EvaluateTestCorpsACorps({
+                nomPersonnage1,
+                competence1,
+                seuilBase1,
+                seuilEffectif1,
+                difficulte1,
+                avantage1,
+                d1_1,
+                d2_1,
+                bonusForce1,
+                armesEnMainPrincipale1,
+                armesEnMainSecondaire1,
+                nomPersonnage2,
+                competence2,
+                seuilBase2,
+                seuilEffectif2,
+                difficulte2,
+                avantage2,
+                d1_2,
+                d2_2,
+                bonusEndurance2,
+                armesEnMainPrincipale2, 
+                armesEnMainSecondaire2})
             end
-
-
-
-
-
-
-
-
-
-
         end
     else
         return
     end
     local myresults = "[br/]Commande à copier dans un message :"
+
+    --[[
+    myheader = "myheader"
+    myrolls = "myrolls"
+    myresults = "myresults"
+    myfooter = "myfooter"
+    myclass = "myclass"
+    ]]
     return rpg.smf.save(myheader, myrolls, myresults, myfooter, myclass)
 end
