@@ -42,7 +42,7 @@ function rpg.character.init()
 
     
     rpg.character.characters[6885]['b40_l1_f1i'] = "3" -- bonus Force
-    rpg.character.characters[6885]['b40_l2_f1i'] = "3" -- bonus Endurance
+    rpg.character.characters[6885]['b40_l2_f1i'] = "4" -- bonus Endurance x 2
     rpg.character.characters[6885]['b42_l1_f1i'] = ""  -- Nombre d'avantages
 
     rpg.character.characters[6885]['b44_l15_f1i'] = ""  -- InterventionDivine
@@ -96,7 +96,7 @@ function rpg.character.init()
     rpg.character.characters[6919]['b14_l14_f5i'] = ""  -- Valeur Competence 13
 
     rpg.character.characters[6919]['b40_l1_f1i'] = "3" -- bonus Force
-    rpg.character.characters[6919]['b40_l2_f1i'] = "3" -- bonus Endurance
+    rpg.character.characters[6919]['b40_l2_f1i'] = "6" -- bonus Endurance x 2
     rpg.character.characters[6919]['b42_l1_f1i'] = ""  -- Nombre d'avantages
     rpg.character.characters[6919]['b44_l15_f1i'] = ""  -- InterventionDivine
 
