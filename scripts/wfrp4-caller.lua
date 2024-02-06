@@ -91,8 +91,27 @@ rpg.dicetester.run(
     "Test de corps à corps"
 )
 
+rpg.dicetester.run(
+    ":ask corps-a-corps ID(6885) Competence(Corps à corps) Difficulté(Intermediaire) / ID(6919) Competence(Corps à Corps (Arme d'hast)) Difficulté(Difficile):",
+    "Demande de test de corps à corps {9, 5, 1, 5}"
+)
 
+rpg.dicetester.run(
+    ":test corps-a-corps ID(6885) Competence(Corps à corps) Difficulté(Intermediaire) / ID(6919) Competence(Corps à Corps (Arme d'hast)) Difficulté(Difficile):",
+    "Test de corps à corps",
+    {9, 5, 1, 5}
+)
 
+rpg.dicetester.run(
+    ":ask corps-a-corps ID(6885) Competence(Corps à corps) Difficulté(Intermediaire) / ID(6919) Competence(Corps à Corps (Arme d'hast)) Difficulté(Difficile):",
+    "Demande de test de corps à corps {0, 5, 7, 2}"
+)
+
+rpg.dicetester.run(
+    ":test corps-a-corps ID(6885) Competence(Corps à corps) Difficulté(Intermediaire) / ID(6919) Competence(Corps à Corps (Arme d'hast)) Difficulté(Difficile):",
+    "Test de corps à corps",
+    {0, 5, 7, 2}
+)
 
 -- print("Utilisation partielle de FakeRandom pour alimenter le test sur les deux premiers jets. Joueur 1 fait un échec critique")
 -- FakeRandom.randomseed({2, 2})
